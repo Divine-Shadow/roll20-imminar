@@ -1,0 +1,12 @@
+{
+  "name": "typescript-bookmarklet",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --minify --target=es6 --format=iife --outfile=dist/bookmarklet.js",
+    "bookmarklet": "node build-bookmarklet.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.0",
+    "typescript": "^5.0.0"
+  }
+}
