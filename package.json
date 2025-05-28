@@ -6,7 +6,10 @@
     "bookmarklet": "node build-bookmarklet.js"
   },
   "devDependencies": {
-    "esbuild": "^0.19.0",
+    "esbuild": "^0.25.5",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "fp-ts": "^2.16.10"
   }
 }

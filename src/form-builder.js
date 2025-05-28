@@ -1,6 +1,6 @@
 // src/form-builder.js
 import { topLeftStyle, injectDarkThemeStyles } from './ui-styles.js';
-import { rollTechCheck } from './roll.js';
+import { rollSkillCheck } from './rollSkillCheck.ts';
 
 export function buildRollForm(config = []) {
   injectDarkThemeStyles();
@@ -87,7 +87,7 @@ export function buildRollForm(config = []) {
       value: +row.querySelector('.mod-value').value || 0
     })).filter(m => m.name && m.value !== 0);
 
-    rollTechCheck({
+    rollSkillCheck({
       characterName: document.getElementById('characterName').value.trim(),
       skillName: document.getElementById('skillName').value.trim(),
       customTitle: document.getElementById('customTitle').value.trim(),
