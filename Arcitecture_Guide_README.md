@@ -37,17 +37,17 @@ Below is a short description of each file inside `src/`:
 - **form-builder.js** – Builds the in-page form, handles user interactions, and wires the "Roll" button to `rollSkillCheck`.
 - **ui-styles.js** – Contains visual styles and helpers like `injectDarkThemeStyles` used by the form builder.
 - **random.ts** – Utility to roll a die of a specified size.
-- **rollPair.ts** – Generates a pair of die rolls (base d20 and optional luck d4) returning an `Option<number>` for luck.
-- **outcome.ts** – Resolves the final roll considering advantage and luck; outputs a `RollOutcome` record.
+- **rollPair.ts** – Generates a roll result (base d20, optional luck) and any confirmation chain for critical values.
+- **outcome.ts** – Resolves the final roll with natural 20/1 overrides and returns a `RollOutcome` including confirmations.
 - **rollSkillCheck.ts** – Formats a chat message using the outcome and posts it to Roll20 chat.
-- **types.ts** – Shared type definitions for roll parameters and results. Uses `Option` extensively to avoid nullable values.
+- **types.ts** – Shared type definitions for roll parameters and results, including `RollResult` and `CriticalChain`.
 
 ### Data Flow
 
 1. `main.ts` calls `buildRollForm()`.
 2. The generated form collects input and on submit calls `rollSkillCheck()` with a `RollParams` object.
 3. `rollSkillCheck()` invokes `getRollOutcome()` from `outcome.ts` to compute the roll result.
-4. `outcome.ts` relies on `rollPair.ts` and `random.ts` for actual dice values.
+4. `outcome.ts` relies on `rollPair.ts` and `random.ts` for dice values and critical confirmations.
 5. The formatted string is injected into the Roll20 chat interface.
 
 ## Development Tips
@@ -61,3 +61,4 @@ Below is a short description of each file inside `src/`:
 
 See `Testing_Plan_README.md` for recommended libraries and example checks. Jest with `fast-check` is used for property based tests.
 Unit test files reside in the `tests/` directory and can be executed with `npm test` which runs Jest using the configuration in `jest.config.js`.
+Additional planning around critical roll logic is documented in `Critical_Roll_Plan_README.md`.

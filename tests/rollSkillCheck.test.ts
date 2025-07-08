@@ -22,8 +22,7 @@ beforeEach(() => {
 
 test('rollSkillCheck sends formatted chat message', () => {
   mockGetRollOutcome.mockReturnValue({
-    chosenBase: 10,
-    chosenLuck: none,
+    chosen: { base: 10, luck: none, confirmations: [18] },
     chosenSum: 10,
     advantageDetails: none
   })
@@ -44,6 +43,7 @@ test('rollSkillCheck sends formatted chat message', () => {
 
   expect(textarea.value).toContain('&{template:default}')
   expect(textarea.value).toContain('Stealth Check')
+  expect(textarea.value).toContain('Confirm 1')
   expect(spyInput).toHaveBeenCalled()
   expect(spyClick).toHaveBeenCalled()
 })

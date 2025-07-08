@@ -35,11 +35,11 @@ of dice rolls is correct.
 - When `useLuck` is `false` the `luck` field should be `None`.
 - When `useLuck` is `true` the `luck` value is between `1` and `4`.
 - `base` is always between `1` and `20`.
+- `confirmations` end with a value other than `1` or `20`.
 
 ### `src/outcome.ts`
-- `chosenSum` equals `chosenBase` plus `chosenLuck` (or `0` if `None`).
-- With advantage enabled the `chosenSum` should be the maximum total of the two
-  underlying rolls.
+- `chosenSum` equals `chosen.base` plus `chosen.luck` (or `0` if `None`).
+- With advantage enabled natural 20 overrides to win and 1 to lose regardless of luck.
 
 ### `src/rollSkillCheck.ts`
 - Using a `jsdom` environment, verify that calling the function creates the

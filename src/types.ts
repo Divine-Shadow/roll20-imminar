@@ -16,14 +16,19 @@ export interface RollParams {
   staticModifiers: StaticModifier[]
 }
 
-export type RollPair = {
+// Result of a single d20 roll with optional luck
+export interface RollResult {
   base: number
   luck: Option<number>
+  confirmations: number[]
 }
 
+// Sequence of d20 values rolled after a 1 or 20
+export type CriticalChain = number[]
+
+// Final resolved roll after considering advantage
 export interface RollOutcome {
-  chosenBase:       number
-  chosenLuck:       Option<number>
-  chosenSum:        number
+  chosen: RollResult
+  chosenSum: number
   advantageDetails: Option<string>
 }
