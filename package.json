@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "build": "esbuild src/main.ts --bundle --minify --target=es6 --format=iife --outfile=dist/bookmarklet.js",
-    "bookmarklet": "node build-bookmarklet.js"
+    "bookmarklet": "node build-bookmarklet.js",
+    "test": "jest"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

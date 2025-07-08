@@ -60,3 +60,4 @@ Below is a short description of each file inside `src/`:
 ## Testing
 
 See `Testing_Plan_README.md` for recommended libraries and example checks. Jest with `fast-check` is used for property based tests.
+Unit test files reside in the `tests/` directory and can be executed with `npm test` which runs Jest using the configuration in `jest.config.js`.

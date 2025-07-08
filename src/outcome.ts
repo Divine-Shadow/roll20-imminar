@@ -6,7 +6,7 @@ import { some, none, fold } from 'fp-ts/Option'
 
 /** Helper: sum of base + luck (0 if none) */
 const total = (p: RollPair): number =>
-  fold(
+  fold<number, number>(
     () => p.base,
     (luck) => p.base + luck
   )(p.luck)
@@ -19,8 +19,8 @@ const formatAdvantageDetails = (
 ): string => {
   const sumChosen = total(chosen)
   const sumOther  = total(other)
-  const luckChosen = fold(() => 0, (l) => l)(chosen.luck)
-  const luckOther  = fold(() => 0, (l) => l)(other.luck)
+  const luckChosen = fold<number, number>(() => 0, (l) => l)(chosen.luck)
+  const luckOther  = fold<number, number>(() => 0, (l) => l)(other.luck)
 
   return `Advantage: ${label} used ` +
     `(Base: ${chosen.base}, Luck: ${luckChosen} = ${sumChosen}; ` +
