@@ -15,6 +15,15 @@ test('rollPair respects useLuck flag and ranges', () => {
       } else {
         expect(pair.luck._tag).toBe('None')
       }
+      pair.confirmations.forEach((c, i) => {
+        expect(c).toBeGreaterThanOrEqual(1)
+        expect(c).toBeLessThanOrEqual(20)
+        if (i < pair.confirmations.length - 1) {
+          expect(c === 1 || c === 20).toBe(true)
+        } else {
+          expect(c === 1 || c === 20).toBe(false)
+        }
+      })
     })
   )
 })

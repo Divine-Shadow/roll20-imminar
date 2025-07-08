@@ -1,11 +1,11 @@
 // src/outcome.ts
 
 import { rollPair } from './rollPair'
-import { RollOutcome, RollPair } from './types'
+import { RollOutcome, RollResult } from './types'
 import { some, none, fold } from 'fp-ts/Option'
 
 /** Helper: sum of base + luck (0 if none) */
-const total = (p: RollPair): number =>
+const total = (p: RollResult): number =>
   fold<number, number>(
     () => p.base,
     (luck) => p.base + luck
@@ -13,8 +13,8 @@ const total = (p: RollPair): number =>
 
 /** Helper: format advantage details */
 const formatAdvantageDetails = (
-  chosen: RollPair,
-  other: RollPair,
+  chosen: RollResult,
+  other: RollResult,
   label: string
 ): string => {
   const sumChosen = total(chosen)
@@ -28,32 +28,35 @@ const formatAdvantageDetails = (
 }
 
 /** No‐advantage: wrap a single RollPair into a RollOutcome */
-function resolveSingle(p: RollPair): RollOutcome {
+function resolveSingle(p: RollResult): RollOutcome {
   return {
-    chosenBase:       p.base,
-    chosenLuck:       p.luck,
-    chosenSum:        total(p),
+    chosen: p,
+    chosenSum: total(p),
     advantageDetails: none
   }
 }
 
 /** Advantage: pick the better of two RollPairs */
-function resolveAdvantage(p1: RollPair, p2: RollPair): RollOutcome {
-  const t1 = total(p1)
-  const t2 = total(p2)
+function resolveAdvantage(p1: RollResult, p2: RollResult): RollOutcome {
+  const rating = (p: RollResult): number => {
+    if (p.base === 20) return Infinity
+    if (p.base === 1) return -Infinity
+    return total(p)
+  }
 
-  if (t1 >= t2) {
+  const r1 = rating(p1)
+  const r2 = rating(p2)
+
+  if (r1 >= r2) {
     return {
-      chosenBase:       p1.base,
-      chosenLuck:       p1.luck,
-      chosenSum:        t1,
+      chosen: p1,
+      chosenSum: total(p1),
       advantageDetails: some(formatAdvantageDetails(p1, p2, '1st'))
     }
   } else {
     return {
-      chosenBase:       p2.base,
-      chosenLuck:       p2.luck,
-      chosenSum:        t2,
+      chosen: p2,
+      chosenSum: total(p2),
       advantageDetails: some(formatAdvantageDetails(p2, p1, '2nd'))
     }
   }

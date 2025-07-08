@@ -15,8 +15,9 @@ export function rollSkillCheck(params: RollParams): void {
     (useLuck ? ' with Luck' : '') +
     (advantage ? ' (Advantage)' : '')
 
-  const { chosenBase, chosenLuck, chosenSum, advantageDetails } =
+  const { chosen, chosenSum, advantageDetails } =
     getRollOutcome(useLuck, advantage)
+  const { base: chosenBase, luck: chosenLuck, confirmations } = chosen
 
   const staticSum = staticModifiers.reduce((acc, m) => acc + m.value, 0)
 
@@ -28,6 +29,7 @@ export function rollSkillCheck(params: RollParams): void {
     ...(chosenLuck._tag === 'Some'
       ? [`{{Luck=[[${chosenLuck.value}]]}}`]
       : []),
+    ...confirmations.map((c, i) => `{{Confirm ${i + 1}=[[${c}]]}}`),
     ...staticModifiers.map(m => `{{${m.name}=[[${m.value}]]}}`),
     `{{${skillName} Modifier=@{${characterName}|${skillName}}}}`,
     `{{Total=[[${chosenSum} + @{${characterName}|${skillName}} + ${staticSum}]]}}`,
