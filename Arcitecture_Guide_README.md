@@ -56,3 +56,7 @@ Below is a short description of each file inside `src/`:
 - When adding new features keep the preference for functional patterns from `fp-ts` in mind (e.g. use `Option` instead of `null`).
 - After modifying TypeScript files, run `npm run build` and `npm run bookmarklet` to regenerate the bookmarklet output.
 
+
+## Testing
+
+See `Testing_Plan_README.md` for recommended libraries and example checks. Jest with `fast-check` is used for property based tests.
