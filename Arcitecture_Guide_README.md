@@ -4,7 +4,7 @@ This document provides an overview of the project layout and explains how the ma
 
 ## High Level Overview
 
-Beacon is a Roll20 overlay written primarily in TypeScript with functional programming helpers from **fp-ts**.  The build process bundles the source into a single bookmarklet script using **esbuild**.
+Veil Vectis is a Roll20 overlay written primarily in TypeScript with functional programming helpers from **fp-ts**.  The build process bundles the source into a single bookmarklet script using **esbuild**.
 
 Key points from the style guide in `Agents.md`:
 
