@@ -35,6 +35,7 @@ Below is a short description of each file inside `src/`:
 
 - **main.ts** – Entrypoint. Imports `buildRollForm` and launches the overlay UI with default static modifiers.
 - **form-builder.js** – Builds the in-page form, handles user interactions, and wires the "Roll" button to `rollSkillCheck`.
+- **skill-options.js** – Defines the hard coded list of skills shown in the form.
 - **ui-styles.js** – Contains visual styles and helpers like `injectDarkThemeStyles` used by the form builder.
 - **random.ts** – Utility to roll a die of a specified size.
 - **rollPair.ts** – Generates a roll result (base d20, optional luck) and any confirmation chain for critical values.
