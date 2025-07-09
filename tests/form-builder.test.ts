@@ -21,6 +21,7 @@ test('buildRollForm creates fields and submits params', () => {
 
   const form = document.getElementById('customRollForm') as HTMLFormElement
   expect(form).toBeTruthy()
+  expect(document.getElementById('skillList')).toBeTruthy()
 
   ;(document.getElementById('characterName') as HTMLInputElement).value = 'Bob'
   ;(document.getElementById('skillName') as HTMLInputElement).value = 'Arcana'
@@ -42,4 +43,23 @@ test('buildRollForm creates fields and submits params', () => {
     advantage: false,
     staticModifiers: [{ name: 'Atk', value: 2 }]
   })
+})
+
+test('selecting Other uses custom skill name', () => {
+  buildRollForm([])
+
+  const form = document.getElementById('customRollForm') as HTMLFormElement
+  ;(document.getElementById('characterName') as HTMLInputElement).value = 'Ann'
+  const skillInput = document.getElementById('skillName') as HTMLInputElement
+  const customInput = document.getElementById('customSkillName') as HTMLInputElement
+
+  skillInput.value = 'Other'
+  skillInput.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }))
+  customInput.value = 'Athletics'
+
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+
+  expect(mockRollSkillCheck).toHaveBeenCalledWith(
+    expect.objectContaining({ skillName: 'Athletics' })
+  )
 })

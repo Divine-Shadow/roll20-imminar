@@ -1,6 +1,7 @@
 // src/form-builder.js
 import { topLeftStyle, injectDarkThemeStyles } from './ui-styles.js';
 import { rollSkillCheck } from './rollSkillCheck.ts';
+import { skillOptions } from './skill-options.js';
 
 export function buildRollForm(config = []) {
   injectDarkThemeStyles();
@@ -44,8 +45,49 @@ export function buildRollForm(config = []) {
     form.appendChild(wrapper);
   }
 
+  function createSkillField(defaultValue = '') {
+    const wrapper = document.createElement('div');
+    const label = document.createElement('label');
+    label.textContent = 'Skill Name: ';
+    const input = document.createElement('input');
+    input.id = 'skillName';
+    input.setAttribute('list', 'skillList');
+    input.value = defaultValue;
+    input.style.width = '100%';
+    input.style.marginBottom = '4px';
+    label.appendChild(input);
+    wrapper.appendChild(label);
+
+    const list = document.createElement('datalist');
+    list.id = 'skillList';
+    skillOptions.forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt;
+      list.appendChild(option);
+    });
+    wrapper.appendChild(list);
+
+    const custom = document.createElement('input');
+    custom.id = 'customSkillName';
+    custom.placeholder = 'Custom Skill';
+    custom.style.width = '100%';
+    custom.style.marginTop = '4px';
+    custom.style.display = 'none';
+    wrapper.appendChild(custom);
+
+    input.addEventListener('input', () => {
+      if (input.value.trim().toLowerCase() === 'other') {
+        custom.style.display = '';
+      } else {
+        custom.style.display = 'none';
+      }
+    });
+
+    form.appendChild(wrapper);
+  }
+
   createField('Character Name', 'characterName', 'Vail');
-  createField('Skill Name', 'skillName', 'Tech');
+  createSkillField('Tech');
   createField('Roll Title', 'customTitle', '');
 
   // Static modifiers area
@@ -87,9 +129,16 @@ export function buildRollForm(config = []) {
       value: +row.querySelector('.mod-value').value || 0
     })).filter(m => m.name && m.value !== 0);
 
+    const dropdownValue = document.getElementById('skillName').value.trim();
+    const custom = document.getElementById('customSkillName');
+    const skill =
+      dropdownValue.toLowerCase() === 'other'
+        ? custom.value.trim()
+        : dropdownValue;
+
     rollSkillCheck({
       characterName: document.getElementById('characterName').value.trim(),
-      skillName: document.getElementById('skillName').value.trim(),
+      skillName: skill,
       customTitle: document.getElementById('customTitle').value.trim(),
       useLuck: document.getElementById('useluck').checked,
       advantage: document.getElementById('advantage').checked,
