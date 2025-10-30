@@ -34,22 +34,26 @@ roll20-imminar/
 Below is a short description of each file inside `src/`:
 
 - **main.ts** – Entrypoint. Imports `buildRollForm` and launches the overlay UI with default static modifiers.
-- **form-builder.js** – Builds the in-page form, handles user interactions, and wires the "Roll" button to `rollSkillCheck`.
+- **form-builder.js** – Builds the in-page form, validates static modifiers, and wires the "Roll" button to `rollSkillCheck`.
 - **skill-options.js** – Defines the hard coded list of skills shown in the form.
 - **ui-styles.js** – Contains visual styles and helpers like `injectDarkThemeStyles` used by the form builder.
+- **ui-validation.ts** – Applies shared error styling and tooltips for invalid inputs.
 - **random.ts** – Utility to roll a die of a specified size.
 - **rollPair.ts** – Generates a roll result (base d20, optional luck) and any confirmation chain for critical values.
 - **outcome.ts** – Resolves the final roll with natural 20/1 overrides and returns a `RollOutcome` including confirmations.
 - **rollSkillCheck.ts** – Formats a chat message using the outcome and posts it to Roll20 chat.
-- **types.ts** – Shared type definitions for roll parameters and results, including `RollResult` and `CriticalChain`.
+- **static-modifier-parser.ts** – Parses modifier text, builds an AST, and evaluates dice expressions using the shared RNG.
+- **static-modifier-types.ts** – Defines the discriminated union (`StaticModifier`) consumed throughout the roll pipeline.
+- **types.ts** – Shared type definitions and re-exports for roll parameters, static modifier unions, and roll outcomes.
 
 ### Data Flow
 
 1. `main.ts` calls `buildRollForm()`.
 2. The generated form collects input and on submit calls `rollSkillCheck()` with a `RollParams` object.
-3. `rollSkillCheck()` invokes `getRollOutcome()` from `outcome.ts` to compute the roll result.
-4. `outcome.ts` relies on `rollPair.ts` and `random.ts` for dice values and critical confirmations.
-5. The formatted string is injected into the Roll20 chat interface.
+3. Static modifiers are parsed and evaluated via `static-modifier-parser.ts`, producing strongly typed entries with precalculated totals.
+4. `rollSkillCheck()` invokes `getRollOutcome()` from `outcome.ts` to compute the roll result.
+5. `outcome.ts` relies on `rollPair.ts` and `random.ts` for dice values and critical confirmations.
+6. The formatted string is injected into the Roll20 chat interface.
 
 ## Development Tips
 

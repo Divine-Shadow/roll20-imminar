@@ -1,11 +1,12 @@
 // src/types.ts
 
 import { Option } from 'fp-ts/Option'
-
-export interface StaticModifier {
-  name:  string
-  value: number
-}
+import {
+  StaticModifier,
+  StaticModifierConstant,
+  StaticModifierDice,
+  DiceRollDetail
+} from './static-modifier-types.ts'
 
 export interface RollParams {
   characterName:   string
@@ -31,4 +32,11 @@ export interface RollOutcome {
   chosen: RollResult
   chosenSum: number
   advantageDetails: Option<string>
+}
+
+export type {
+  StaticModifier,
+  StaticModifierConstant,
+  StaticModifierDice,
+  DiceRollDetail
 }

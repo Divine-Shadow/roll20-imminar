@@ -19,7 +19,7 @@ export function rollSkillCheck(params: RollParams): void {
     getRollOutcome(useLuck, advantage)
   const { base: chosenBase, luck: chosenLuck, confirmations } = chosen
 
-  const staticSum = staticModifiers.reduce((acc, m) => acc + m.value, 0)
+  const staticSum = staticModifiers.reduce((acc, m) => acc + m.total, 0)
 
   const lines: string[] = [
     customTitle
@@ -30,7 +30,7 @@ export function rollSkillCheck(params: RollParams): void {
       ? [`{{Luck=[[${chosenLuck.value}]]}}`]
       : []),
     ...confirmations.map((c, i) => `{{Confirm ${i + 1}=[[${c}]]}}`),
-    ...staticModifiers.map(m => `{{${m.name}=[[${m.value}]]}}`),
+    ...staticModifiers.map(m => `{{${m.name}=[[${m.total}]]}}`),
     `{{${skillName} Modifier=@{${characterName}|${skillName}}}}`,
     `{{Total=[[${chosenSum} + @{${characterName}|${skillName}} + ${staticSum}]]}}`,
     ...(advantageDetails._tag === 'Some'

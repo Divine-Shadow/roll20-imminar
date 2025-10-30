@@ -2,6 +2,14 @@
 import { topLeftStyle, injectDarkThemeStyles } from './ui-styles.js';
 import { rollSkillCheck } from './rollSkillCheck.ts';
 import { skillOptions } from './skill-options.js';
+import { rollDie } from './random.ts';
+import {
+  parseStaticModifierExpression,
+  evaluateParsedStaticModifier
+} from './static-modifier-parser.ts';
+import { showInputError, clearInputError } from './ui-validation.ts';
+
+const modifierParseCache = new WeakMap();
 
 export function buildRollForm(config = []) {
   injectDarkThemeStyles();
@@ -122,12 +130,50 @@ export function buildRollForm(config = []) {
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-    const mods = Array.from(
+    const rows = Array.from(
       document.querySelectorAll('#staticModifiersContainer .static-modifier-row')
-    ).map(row => ({
-      name: row.querySelector('.mod-name').value.trim(),
-      value: +row.querySelector('.mod-value').value || 0
-    })).filter(m => m.name && m.value !== 0);
+    );
+
+    const mods = [];
+    let hasErrors = false;
+
+    rows.forEach(row => {
+      const nameInput = row.querySelector('.mod-name');
+      const valueInput = row.querySelector('.mod-value');
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        return;
+      }
+
+      const parsed = ensureParsedModifier(valueInput);
+      if (!parsed.ok) {
+        hasErrors = true;
+        return;
+      }
+
+      const evaluated = evaluateParsedStaticModifier(parsed.value, rollDie);
+      if (evaluated.kind === 'constant') {
+        mods.push({
+          name,
+          kind: 'constant',
+          total: evaluated.total,
+          value: evaluated.value
+        });
+      } else {
+        mods.push({
+          name,
+          kind: 'dice',
+          total: evaluated.total,
+          expression: evaluated.expression,
+          dice: evaluated.dice
+        });
+      }
+    });
+
+    if (hasErrors) {
+      return;
+    }
 
     const dropdownValue = document.getElementById('skillName').value.trim();
     const custom = document.getElementById('customSkillName');
@@ -174,6 +220,54 @@ function createStaticModifiersSection(config, container) {
   return section;
 }
 
+function normalizeExpressionValue(value) {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function validateModifierInput(input) {
+  const raw = input.value;
+  const trimmed = raw.trim();
+
+  if (trimmed.length === 0) {
+    modifierParseCache.delete(input);
+    clearInputError(input);
+    return;
+  }
+
+  const result = parseStaticModifierExpression(trimmed);
+  if (result.ok) {
+    modifierParseCache.set(input, result.value);
+    clearInputError(input);
+  } else {
+    modifierParseCache.delete(input);
+    showInputError(input, result.error);
+  }
+}
+
+function ensureParsedModifier(input) {
+  const trimmed = input.value.trim();
+  if (trimmed.length === 0) {
+    showInputError(input, 'Enter a number or dice expression');
+    return { ok: false };
+  }
+
+  const normalized = normalizeExpressionValue(trimmed);
+  const cached = modifierParseCache.get(input);
+  if (cached && cached.source === normalized) {
+    return { ok: true, value: cached };
+  }
+
+  const result = parseStaticModifierExpression(trimmed);
+  if (result.ok) {
+    modifierParseCache.set(input, result.value);
+    clearInputError(input);
+    return { ok: true, value: result.value };
+  }
+
+  showInputError(input, result.error);
+  return { ok: false };
+}
+
 function addStaticModifierRow(name, value, container) {
   const row = document.createElement('div');
   row.className = 'static-modifier-row';
@@ -187,9 +281,14 @@ function addStaticModifierRow(name, value, container) {
 
   const valueInput = document.createElement('input');
   valueInput.className = 'mod-value';
-  valueInput.type = 'number';
+  valueInput.type = 'text';
   valueInput.value = value;
-  valueInput.style.width = '50px';
+  valueInput.style.width = '90px';
+  valueInput.addEventListener('input', () => validateModifierInput(valueInput));
+  valueInput.addEventListener('blur', () => validateModifierInput(valueInput));
+  if (value !== '') {
+    validateModifierInput(valueInput);
+  }
 
   const del = document.createElement('button');
   del.type = 'button';
