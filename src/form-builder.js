@@ -3,6 +3,7 @@ import { topLeftStyle, injectDarkThemeStyles } from './ui-styles.js';
 import { rollSkillCheck } from './rollSkillCheck.ts';
 import { skillOptions } from './skill-options.js';
 import { rollDie } from './random.ts';
+import { parseSaveData } from './save-data-parser.ts';
 import {
   parseStaticModifierExpression,
   evaluateParsedStaticModifier
@@ -10,9 +11,16 @@ import {
 import { showInputError, clearInputError } from './ui-validation.ts';
 
 const modifierParseCache = new WeakMap();
+const DATA_SOURCE_STORAGE_KEY = 'roll20-imminar:data-source';
 
-export function buildRollForm(config = []) {
+export function buildRollForm(config = [], initialSaveData) {
   injectDarkThemeStyles();
+  let currentSaveData = initialSaveData;
+  let skillInputRef;
+  let skillListRef;
+  let sourceSelectRef;
+  let roll20CharacterWrapperRef;
+  let roll20CharacterListRef;
 
   const formDiv = document.createElement('div');
   Object.assign(formDiv.style, topLeftStyle);
@@ -21,11 +29,48 @@ export function buildRollForm(config = []) {
   const form = document.createElement('form');
   form.id = 'customRollForm';
 
+  function makePanelDraggable(handle, panel) {
+    let dragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    const onMouseMove = event => {
+      if (!dragging) {
+        return;
+      }
+
+      panel.style.left = `${event.clientX - offsetX}px`;
+      panel.style.top = `${event.clientY - offsetY}px`;
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+    };
+
+    const onMouseUp = () => {
+      dragging = false;
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    handle.addEventListener('mousedown', event => {
+      dragging = true;
+      const panelLeft = parseInt(panel.style.left || '0', 10);
+      const panelTop = parseInt(panel.style.top || '0', 10);
+      offsetX = event.clientX - panelLeft;
+      offsetY = event.clientY - panelTop;
+
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
   // Header + Close button
   const heading = document.createElement('h3');
   heading.textContent = 'Roll Settings';
   heading.style.marginTop = '0';
+  heading.style.cursor = 'move';
+  heading.style.userSelect = 'none';
   form.appendChild(heading);
+  makePanelDraggable(heading, formDiv);
 
   const closeBtn = document.createElement('button');
   closeBtn.type = 'button';
@@ -38,8 +83,48 @@ export function buildRollForm(config = []) {
   closeBtn.addEventListener('click', () => formDiv.remove());
   form.appendChild(closeBtn);
 
+  const dataBtn = document.createElement('button');
+  dataBtn.type = 'button';
+  dataBtn.textContent = 'Data';
+  Object.assign(dataBtn.style, {
+    float: 'right',
+    marginTop: '-28px',
+    marginRight: '28px',
+    fontSize: '11px',
+    border: '1px solid #555',
+    borderRadius: '4px',
+    background: '#1f1f1f',
+    color: '#ddd',
+    cursor: 'pointer',
+    padding: '2px 6px'
+  });
+  form.appendChild(dataBtn);
+
+  function setDataButtonState() {
+    const isSaveSource = sourceSelectRef && sourceSelectRef.value === 'save-file';
+    const hasSaveData = Boolean(currentSaveData);
+
+    if (isSaveSource && hasSaveData) {
+      dataBtn.textContent = 'Data ✓';
+      dataBtn.style.borderColor = '#3c7';
+      dataBtn.style.color = '#d6ffe5';
+      return;
+    }
+
+    if (isSaveSource && !hasSaveData) {
+      dataBtn.textContent = 'Data !';
+      dataBtn.style.borderColor = '#996a22';
+      dataBtn.style.color = '#ffd9a0';
+      return;
+    }
+
+    dataBtn.textContent = 'Data';
+    dataBtn.style.borderColor = '#555';
+    dataBtn.style.color = '#ddd';
+  }
+
   // Simple text/number field creator
-  function createField(labelText, id, defaultValue = '') {
+  function createField(labelText, id, defaultValue = '', parent = form) {
     const wrapper = document.createElement('div');
     const label = document.createElement('label');
     label.textContent = `${labelText}: `;
@@ -50,7 +135,7 @@ export function buildRollForm(config = []) {
     input.style.marginBottom = '4px';
     label.appendChild(input);
     wrapper.appendChild(label);
-    form.appendChild(wrapper);
+    parent.appendChild(wrapper);
   }
 
   function createSkillField(defaultValue = '') {
@@ -91,17 +176,356 @@ export function buildRollForm(config = []) {
       }
     });
 
-    form.appendChild(wrapper);
+    return { wrapper, input, list, custom };
   }
 
-  createField('Character Name', 'characterName', 'Vail');
-  createSkillField('Tech');
-  createField('Roll Title', 'customTitle', '');
+  function createRollTypeToggle(parent = form) {
+    const wrapper = document.createElement('div');
+    const label = document.createElement('label');
+    label.textContent = 'Roll Type: ';
+
+    const select = document.createElement('select');
+    select.id = 'rollType';
+    select.style.width = '100%';
+    select.style.marginBottom = '4px';
+
+    const standardOpt = document.createElement('option');
+    standardOpt.value = 'standard';
+    standardOpt.textContent = 'Standard';
+
+    const semigroupOpt = document.createElement('option');
+    semigroupOpt.value = 'semigroup';
+    semigroupOpt.textContent = 'Semigroup';
+
+    select.append(standardOpt, semigroupOpt);
+    label.appendChild(select);
+    wrapper.appendChild(label);
+    parent.appendChild(wrapper);
+
+    return select;
+  }
+
+  function readCharacterName() {
+    const characterInput = document.getElementById('characterName');
+    return characterInput ? characterInput.value.trim() : '';
+  }
+
+  function collectRoll20CharacterNames() {
+    const names = Array.from(document.querySelectorAll('#speakingas option'))
+      .map(option => option.textContent?.trim() || '')
+      .filter(Boolean)
+      .map(name => name.replace(/\s*\(GM\)\s*$/i, ''));
+
+    const current = readCharacterName();
+    if (current) {
+      names.push(current);
+    }
+    if (currentSaveData?.characterName) {
+      names.push(currentSaveData.characterName);
+    }
+
+    return uniqueValues(names);
+  }
+
+  function syncCharacterOptions() {
+    if (!roll20CharacterListRef) {
+      return;
+    }
+
+    roll20CharacterListRef.innerHTML = '';
+    collectRoll20CharacterNames().forEach(name => {
+      const option = document.createElement('option');
+      option.value = name;
+      roll20CharacterListRef.appendChild(option);
+    });
+  }
+
+  function loadPersistedDataSource() {
+    try {
+      const value = window.localStorage.getItem(DATA_SOURCE_STORAGE_KEY);
+      return value === 'save-file' || value === 'roll20' ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function persistDataSource(value) {
+    try {
+      window.localStorage.setItem(DATA_SOURCE_STORAGE_KEY, value);
+    } catch {
+      // Ignore storage failures in restricted contexts.
+    }
+  }
+
+  function uniqueValues(values) {
+    return Array.from(new Set(values.filter(v => typeof v === 'string' && v.trim().length > 0)));
+  }
+
+  function getCorruptionOptionEntries(data) {
+    return data.corruptionLevels.map(level => ({
+      label: `Corruption Level ${level}`,
+      value: level
+    }));
+  }
+
+  function buildSelectableOptions(data) {
+    if (!data) {
+      return skillOptions.slice();
+    }
+
+    const skillNames = Object.keys(data.skills);
+    const attributeNames = data.attributes.slice();
+    const corruptionLabels = getCorruptionOptionEntries(data).map(entry => entry.label);
+    return uniqueValues([
+      ...skillNames,
+      ...attributeNames,
+      ...corruptionLabels
+    ]);
+  }
+
+  function toAugmentedSaveData(data) {
+    if (!data) {
+      return undefined;
+    }
+
+    const attributeEntries = Object.fromEntries(
+      data.attributes.map(attribute => [attribute, 0])
+    );
+    const corruptionEntries = Object.fromEntries(
+      getCorruptionOptionEntries(data).map(entry => [entry.label, entry.value])
+    );
+
+    return {
+      ...data,
+      skills: {
+        ...data.skills,
+        ...attributeEntries,
+        ...corruptionEntries
+      }
+    };
+  }
+
+  function syncSkillOptions() {
+    if (!skillListRef) {
+      return;
+    }
+
+    skillListRef.innerHTML = '';
+    buildSelectableOptions(currentSaveData).forEach(opt => {
+      const option = document.createElement('option');
+      option.value = opt;
+      skillListRef.appendChild(option);
+    });
+  }
+
+  function setCurrentSaveData(data) {
+    currentSaveData = data;
+    syncSkillOptions();
+    setDataButtonState();
+    const characterInput = document.getElementById('characterName');
+    if (
+      characterInput &&
+      data &&
+      data.characterName &&
+      (
+        characterInput.value.trim().length === 0 ||
+        characterInput.value.trim() === 'Vail'
+      )
+    ) {
+      characterInput.value = data.characterName;
+    }
+  }
+
+  function createDataSourceControls() {
+    const wrapper = document.createElement('div');
+    wrapper.id = 'dataSourcePanel';
+    Object.assign(wrapper.style, {
+      display: 'none',
+      position: 'absolute',
+      top: '38px',
+      right: '0',
+      width: '220px',
+      background: '#141414',
+      border: '1px solid #555',
+      borderRadius: '8px',
+      padding: '8px',
+      boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+      zIndex: '10001'
+    });
+
+    const panelTitle = document.createElement('div');
+    panelTitle.textContent = 'Data Source';
+    panelTitle.style.fontWeight = 'bold';
+    panelTitle.style.marginBottom = '6px';
+    wrapper.appendChild(panelTitle);
+
+    const sourceLabel = document.createElement('label');
+    sourceLabel.textContent = 'Data Source: ';
+
+    const sourceSelect = document.createElement('select');
+    sourceSelect.id = 'dataSource';
+    sourceSelect.style.width = '100%';
+    sourceSelect.style.marginBottom = '4px';
+
+    const roll20Opt = document.createElement('option');
+    roll20Opt.value = 'roll20';
+    roll20Opt.textContent = 'Roll20 Sheet';
+    const saveOpt = document.createElement('option');
+    saveOpt.value = 'save-file';
+    saveOpt.textContent = 'Save File';
+
+    sourceSelect.append(roll20Opt, saveOpt);
+    const persistedSource = loadPersistedDataSource();
+    sourceSelect.value = persistedSource ?? (currentSaveData ? 'save-file' : 'roll20');
+    sourceSelectRef = sourceSelect;
+    sourceLabel.appendChild(sourceSelect);
+    wrapper.appendChild(sourceLabel);
+
+    const characterWrapper = document.createElement('div');
+    characterWrapper.id = 'roll20CharacterWrapper';
+    characterWrapper.style.marginBottom = '4px';
+    roll20CharacterWrapperRef = characterWrapper;
+
+    const characterLabel = document.createElement('label');
+    characterLabel.textContent = 'Character (Roll20): ';
+    const characterInput = document.createElement('input');
+    characterInput.id = 'characterName';
+    characterInput.value = 'Vail';
+    characterInput.setAttribute('list', 'characterNameList');
+    characterInput.style.width = '100%';
+    characterInput.style.marginBottom = '4px';
+    characterLabel.appendChild(characterInput);
+    characterWrapper.appendChild(characterLabel);
+
+    const characterList = document.createElement('datalist');
+    characterList.id = 'characterNameList';
+    roll20CharacterListRef = characterList;
+    characterWrapper.appendChild(characterList);
+
+    wrapper.appendChild(characterWrapper);
+
+    const fileInput = document.createElement('input');
+    fileInput.id = 'saveFileInput';
+    fileInput.type = 'file';
+    fileInput.accept = 'application/json,.json';
+    fileInput.style.width = '100%';
+    fileInput.style.marginBottom = '4px';
+    wrapper.appendChild(fileInput);
+
+    const status = document.createElement('div');
+    status.id = 'saveFileStatus';
+    status.style.fontSize = '12px';
+    status.style.color = '#bbb';
+    status.textContent = currentSaveData ? 'Loaded: provided save data' : 'No save file selected.';
+    wrapper.appendChild(status);
+
+    const okBtn = document.createElement('button');
+    okBtn.type = 'button';
+    okBtn.id = 'dataSourcePanelOk';
+    okBtn.textContent = 'OK';
+    okBtn.style.marginTop = '8px';
+    okBtn.style.width = '100%';
+    okBtn.addEventListener('click', () => {
+      wrapper.style.display = 'none';
+    });
+    wrapper.appendChild(okBtn);
+
+    const refreshVisibility = () => {
+      const usingSaveFile = sourceSelect.value === 'save-file';
+      fileInput.style.display = usingSaveFile ? '' : 'none';
+      status.style.display = usingSaveFile ? '' : 'none';
+      if (roll20CharacterWrapperRef) {
+        roll20CharacterWrapperRef.style.display = usingSaveFile ? 'none' : '';
+      }
+      if (!usingSaveFile) {
+        clearInputError(fileInput);
+      }
+      setDataButtonState();
+      syncCharacterOptions();
+    };
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files && fileInput.files[0];
+      if (!file) {
+        status.textContent = currentSaveData ? 'Using previously loaded save data.' : 'No save file selected.';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        try {
+          setCurrentSaveData(parseSaveData(String(reader.result ?? '')));
+          clearInputError(fileInput);
+          status.textContent = `Loaded: ${file.name}`;
+          status.style.color = '#9fe0b4';
+        } catch {
+          setCurrentSaveData(undefined);
+          showInputError(fileInput, 'Invalid save JSON file');
+          status.textContent = `Failed to parse: ${file.name}`;
+          status.style.color = '#ff9999';
+        }
+      });
+      reader.readAsText(file);
+    });
+
+    sourceSelect.addEventListener('change', () => {
+      persistDataSource(sourceSelect.value);
+      refreshVisibility();
+    });
+    characterInput.addEventListener('focus', syncCharacterOptions);
+    refreshVisibility();
+
+    return { wrapper, sourceSelect, fileInput };
+  }
+
+  const { wrapper: dataSourceControls, sourceSelect, fileInput } = createDataSourceControls();
+  formDiv.appendChild(dataSourceControls);
+
+  dataBtn.addEventListener('click', () => {
+    dataSourceControls.style.display =
+      dataSourceControls.style.display === 'none' ? 'block' : 'none';
+  });
+
+  const setupToggleBtn = document.createElement('button');
+  setupToggleBtn.type = 'button';
+  setupToggleBtn.id = 'setupToggleBtn';
+  setupToggleBtn.textContent = 'Hide Setup';
+  setupToggleBtn.style.marginBottom = '6px';
+  setupToggleBtn.style.width = '100%';
+  form.appendChild(setupToggleBtn);
+
+  const setupBody = document.createElement('div');
+  setupBody.id = 'setupBody';
+  setupBody.style.marginBottom = '8px';
+  form.appendChild(setupBody);
+
+  const quickSection = document.createElement('div');
+  quickSection.id = 'quickRollSection';
+  Object.assign(quickSection.style, {
+    borderTop: '1px solid #3f3f3f',
+    paddingTop: '8px',
+    marginTop: '8px'
+  });
+  form.appendChild(quickSection);
+
+  createField('Roll Title', 'customTitle', '', quickSection);
+  const skillField = createSkillField('Tech');
+  skillInputRef = skillField.input;
+  skillListRef = skillField.list;
+  quickSection.appendChild(skillField.wrapper);
+  const rollTypeSelect = createRollTypeToggle(setupBody);
+
+  const standardSettings = document.createElement('div');
+  standardSettings.id = 'standardSettings';
+  setupBody.appendChild(standardSettings);
+  syncSkillOptions();
+  syncCharacterOptions();
+  setDataButtonState();
 
   // Static modifiers area
   const container = document.createElement('div');
   container.id = 'staticModifiersContainer';
-  form.appendChild(createStaticModifiersSection(config, container));
+  standardSettings.appendChild(createStaticModifiersSection(config, container));
 
   // Checkboxes
   ['Use Luck','Advantage'].forEach((labelText, idx) => {
@@ -115,80 +539,124 @@ export function buildRollForm(config = []) {
     cb.checked = true;
     label.appendChild(cb);
     wrapper.appendChild(label);
-    form.appendChild(wrapper);
+    standardSettings.appendChild(wrapper);
   });
+
+  const semigroupInfo = document.createElement('div');
+  semigroupInfo.id = 'semigroupInfo';
+  semigroupInfo.style.display = 'none';
+  semigroupInfo.style.marginTop = '8px';
+  semigroupInfo.textContent = 'Semigroup tiers: Standard 1-20, Great 21-50, Master 51-100.';
+  setupBody.appendChild(semigroupInfo);
+
+  const refreshSetupUI = () => {
+    const hidden = setupBody.style.display === 'none';
+    setupBody.style.display = hidden ? '' : 'none';
+    setupToggleBtn.textContent = hidden ? 'Hide Setup' : 'Show Setup';
+  };
+  setupToggleBtn.addEventListener('click', refreshSetupUI);
+
+  const refreshRollTypeUI = () => {
+    const semigroupSelected = rollTypeSelect.value === 'semigroup';
+    skillField.wrapper.style.display = semigroupSelected ? 'none' : '';
+    const setupHidden = setupBody.style.display === 'none';
+    standardSettings.style.display = semigroupSelected || setupHidden ? 'none' : '';
+    semigroupInfo.style.display = semigroupSelected && !setupHidden ? '' : 'none';
+  };
+  setupToggleBtn.addEventListener('click', refreshRollTypeUI);
+  rollTypeSelect.addEventListener('change', refreshRollTypeUI);
+  refreshRollTypeUI();
 
   // Roll button
   const submitBtn = document.createElement('button');
   submitBtn.type = 'submit';
   submitBtn.textContent = 'Roll!';
   submitBtn.style.marginTop = '6px';
-  form.appendChild(submitBtn);
+  submitBtn.style.width = '100%';
+  quickSection.appendChild(submitBtn);
 
   formDiv.appendChild(form);
   document.body.appendChild(formDiv);
 
   form.addEventListener('submit', e => {
     e.preventDefault();
-    const rows = Array.from(
-      document.querySelectorAll('#staticModifiersContainer .static-modifier-row')
-    );
-
+    const rollType = document.getElementById('rollType').value;
+    const semigroupSelected = rollType === 'semigroup';
+    const selectedSource = sourceSelect.value;
     const mods = [];
-    let hasErrors = false;
+    const saveData = selectedSource === 'save-file'
+      ? toAugmentedSaveData(currentSaveData)
+      : undefined;
+    const roll20CharacterName = readCharacterName();
 
-    rows.forEach(row => {
-      const nameInput = row.querySelector('.mod-name');
-      const valueInput = row.querySelector('.mod-value');
-      const name = nameInput.value.trim();
-
-      if (!name) {
-        return;
-      }
-
-      const parsed = ensureParsedModifier(valueInput);
-      if (!parsed.ok) {
-        hasErrors = true;
-        return;
-      }
-
-      const evaluated = evaluateParsedStaticModifier(parsed.value, rollDie);
-      if (evaluated.kind === 'constant') {
-        mods.push({
-          name,
-          kind: 'constant',
-          total: evaluated.total,
-          value: evaluated.value
-        });
-      } else {
-        mods.push({
-          name,
-          kind: 'dice',
-          total: evaluated.total,
-          expression: evaluated.expression,
-          dice: evaluated.dice
-        });
-      }
-    });
-
-    if (hasErrors) {
+    if (!semigroupSelected && selectedSource === 'save-file' && !saveData) {
+      showInputError(fileInput, 'Select a valid save JSON file');
       return;
+    }
+
+    if (!semigroupSelected) {
+      const rows = Array.from(
+        document.querySelectorAll('#staticModifiersContainer .static-modifier-row')
+      );
+      let hasErrors = false;
+
+      rows.forEach(row => {
+        const nameInput = row.querySelector('.mod-name');
+        const valueInput = row.querySelector('.mod-value');
+        const name = nameInput.value.trim();
+
+        if (!name) {
+          return;
+        }
+
+        const parsed = ensureParsedModifier(valueInput);
+        if (!parsed.ok) {
+          hasErrors = true;
+          return;
+        }
+
+        const evaluated = evaluateParsedStaticModifier(parsed.value, rollDie);
+        if (evaluated.kind === 'constant') {
+          mods.push({
+            name,
+            kind: 'constant',
+            total: evaluated.total,
+            value: evaluated.value
+          });
+        } else {
+          mods.push({
+            name,
+            kind: 'dice',
+            total: evaluated.total,
+            expression: evaluated.expression,
+            dice: evaluated.dice
+          });
+        }
+      });
+
+      if (hasErrors) {
+        return;
+      }
     }
 
     const dropdownValue = document.getElementById('skillName').value.trim();
     const custom = document.getElementById('customSkillName');
-    const skill =
+    const skill = semigroupSelected
+      ? ''
+      :
       dropdownValue.toLowerCase() === 'other'
         ? custom.value.trim()
         : dropdownValue;
 
     rollSkillCheck({
-      characterName: document.getElementById('characterName').value.trim(),
+      characterName: saveData?.characterName || roll20CharacterName,
       skillName: skill,
       customTitle: document.getElementById('customTitle').value.trim(),
+      rollType,
       useLuck: document.getElementById('useluck').checked,
       advantage: document.getElementById('advantage').checked,
       staticModifiers: mods,
+      ...(saveData ? { saveData } : {})
     });
   });
 }

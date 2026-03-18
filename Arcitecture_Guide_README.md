@@ -34,14 +34,15 @@ roll20-imminar/
 Below is a short description of each file inside `src/`:
 
 - **main.ts** – Entrypoint. Imports `buildRollForm` and launches the overlay UI with default static modifiers.
-- **form-builder.js** – Builds the in-page form, validates static modifiers, and wires the "Roll" button to `rollSkillCheck`.
+- **form-builder.js** – Builds the in-page form, exposes toggles for roll type (`Standard` vs `Semigroup`) and data source (`Roll20 Sheet` vs `Save File`), splits the UI into a collapsible `Roll Setup` section plus a bottom `Quick Roll` section (title, skill, submit), persists data-source selection via `localStorage`, supports dragging the main panel by header, provides a separate data-source popover with loaded-state indicators and an in-panel `OK` dismiss action, includes a Roll20 character selector field in that popover (used for `@{character|skill}` lookups), loads/parses selected save JSON files, auto-fills character name from loaded save data, dynamically refreshes the selectable roll list (skills + attributes + corruption levels), validates static modifiers for standard rolls, and wires the "Roll" button to `rollSkillCheck`.
 - **skill-options.js** – Defines the hard coded list of skills shown in the form.
 - **ui-styles.js** – Contains visual styles and helpers like `injectDarkThemeStyles` used by the form builder.
 - **ui-validation.ts** – Applies shared error styling and tooltips for invalid inputs.
 - **random.ts** – Utility to roll a die of a specified size.
 - **rollPair.ts** – Generates a roll result (base d20, optional luck) and any confirmation chain for critical values.
 - **outcome.ts** – Resolves the final roll with natural 20/1 overrides and returns a `RollOutcome` including confirmations.
-- **rollSkillCheck.ts** – Formats a chat message using the outcome and posts it to Roll20 chat.
+- **rollSkillCheck.ts** – Formats and posts chat output for two paths: standard d20 skill checks (with optional luck/advantage/modifiers) and Semigroup d100 tier rolls.
+- **save-data-parser.ts** – Parses exported save JSON into normalized skill totals, attributes, corruption levels, and exposes skill lookup helpers for roll-time modifier resolution.
 - **static-modifier-parser.ts** – Parses modifier text, builds an AST, and evaluates dice expressions using the shared RNG.
 - **static-modifier-types.ts** – Defines the discriminated union (`StaticModifier`) consumed throughout the roll pipeline.
 - **types.ts** – Shared type definitions and re-exports for roll parameters, static modifier unions, and roll outcomes.
@@ -50,9 +51,11 @@ Below is a short description of each file inside `src/`:
 
 1. `main.ts` calls `buildRollForm()`.
 2. The generated form collects input and on submit calls `rollSkillCheck()` with a `RollParams` object.
-3. Static modifiers are parsed and evaluated via `static-modifier-parser.ts`, producing strongly typed entries with precalculated totals.
-4. `rollSkillCheck()` invokes `getRollOutcome()` from `outcome.ts` to compute the roll result.
-5. `outcome.ts` relies on `rollPair.ts` and `random.ts` for dice values and critical confirmations.
+3. For `Standard` rolls, static modifiers are parsed and evaluated via `static-modifier-parser.ts`, producing strongly typed entries with precalculated totals.
+4. `rollSkillCheck()` branches on `RollParams.rollType`:
+   - `standard`: invokes `getRollOutcome()` from `outcome.ts` and includes skill/modifier math in the template. If parsed save data is provided, skill modifiers are read directly from that data source; otherwise it falls back to Roll20 attribute lookups (`@{character|skill}`).
+   - `semigroup`: rolls a d100 directly and maps the result to tier (`Standard`, `Great`, `Master`) without skill, luck, advantage, or static modifiers.
+5. `outcome.ts` relies on `rollPair.ts` and `random.ts` for standard d20 roll values and critical confirmations.
 6. The formatted string is injected into the Roll20 chat interface.
 
 ## Development Tips

@@ -8,13 +8,25 @@ import {
   DiceRollDetail
 } from './static-modifier-types.ts'
 
+export type RollType = 'standard' | 'semigroup'
+
+export interface ParsedSaveData {
+  characterName: string
+  playerName: string
+  skills: Record<string, number>
+  attributes: string[]
+  corruptionLevels: number[]
+}
+
 export interface RollParams {
   characterName:   string
   skillName:       string
   customTitle:     string
+  rollType:        RollType
   useLuck:         boolean
   advantage:       boolean
   staticModifiers: StaticModifier[]
+  saveData?:       ParsedSaveData
 }
 
 // Result of a single d20 roll with optional luck

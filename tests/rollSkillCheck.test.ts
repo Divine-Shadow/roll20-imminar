@@ -3,9 +3,14 @@ import { getRollOutcome } from '../src/outcome'
 import { none } from 'fp-ts/Option'
 import { JSDOM } from 'jsdom'
 import { StaticModifier } from '../src/types'
+import { rollDie } from '../src/random'
 
 jest.mock('../src/outcome')
+jest.mock('../src/random', () => ({
+  rollDie: jest.fn(() => 1)
+}))
 const mockGetRollOutcome = getRollOutcome as jest.MockedFunction<typeof getRollOutcome>
+const mockRollDie = rollDie as jest.MockedFunction<typeof rollDie>
 
 let dom: JSDOM
 beforeEach(() => {
@@ -19,6 +24,8 @@ beforeEach(() => {
     <button id="chatSendBtn"></button>
   `
   mockGetRollOutcome.mockReset()
+  mockRollDie.mockReset()
+  mockRollDie.mockReturnValue(1)
 })
 
 test('rollSkillCheck sends formatted chat message', () => {
@@ -37,6 +44,7 @@ test('rollSkillCheck sends formatted chat message', () => {
     characterName: 'Alice',
     skillName: 'Stealth',
     customTitle: 'Sneak',
+    rollType: 'standard',
     useLuck: false,
     advantage: false,
     staticModifiers: []
@@ -70,6 +78,7 @@ test('includes static modifiers totals in output', () => {
     characterName: 'Lia',
     skillName: 'Religion',
     customTitle: '',
+    rollType: 'standard',
     useLuck: false,
     advantage: false,
     staticModifiers: modifiers
@@ -80,4 +89,61 @@ test('includes static modifiers totals in output', () => {
   expect(textarea.value).toContain('[[12 + @{Lia|Religion} + 9]]')
   expect(spyInput).toHaveBeenCalled()
   expect(spyClick).toHaveBeenCalled()
+})
+
+test('semigroup roll uses d100 tier output and ignores skill formatting', () => {
+  mockRollDie.mockReturnValue(77)
+
+  const textarea = document.querySelector<HTMLTextAreaElement>('#textchat-input textarea')!
+  const sendBtn = document.querySelector<HTMLButtonElement>('#chatSendBtn')!
+  const spyClick = jest.spyOn(sendBtn, 'click')
+
+  rollSkillCheck({
+    characterName: 'Lia',
+    skillName: 'Religion',
+    customTitle: 'Group Roll',
+    rollType: 'semigroup',
+    useLuck: true,
+    advantage: true,
+    staticModifiers: [{ name: 'Bless', kind: 'constant', total: 2, value: 2 }]
+  })
+
+  expect(mockGetRollOutcome).not.toHaveBeenCalled()
+  expect(textarea.value).toContain('{{name=Group Roll}}')
+  expect(textarea.value).toContain('{{Roll=Semigroup}}')
+  expect(textarea.value).toContain('{{Semigroup Roll=[[77]]}}')
+  expect(textarea.value).toContain('{{Tier=Master}}')
+  expect(textarea.value).not.toContain('Religion')
+  expect(spyClick).toHaveBeenCalled()
+})
+
+test('standard roll can use parsed save data instead of roll20 attribute lookup', () => {
+  mockGetRollOutcome.mockReturnValue({
+    chosen: { base: 9, luck: none, confirmations: [] },
+    chosenSum: 9,
+    advantageDetails: none
+  })
+
+  const textarea = document.querySelector<HTMLTextAreaElement>('#textchat-input textarea')!
+
+  rollSkillCheck({
+    characterName: 'Lia',
+    skillName: 'Tech',
+    customTitle: '',
+    rollType: 'standard',
+    useLuck: false,
+    advantage: false,
+    staticModifiers: [],
+    saveData: {
+      characterName: 'Lia',
+      playerName: 'Player',
+      skills: { Tech: 14 },
+      attributes: ['Analytical'],
+      corruptionLevels: [11]
+    }
+  })
+
+  expect(textarea.value).toContain('{{Tech Modifier=14}}')
+  expect(textarea.value).toContain('{{Total=[[9 + 14 + 0]]}}')
+  expect(textarea.value).not.toContain('@{Lia|Tech}')
 })
