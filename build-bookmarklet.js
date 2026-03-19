@@ -103,6 +103,11 @@ function buildInstallPage(bookmarklet, outputPath) {
       border-color: #9aa3b2;
     }
     .muted { color: #555; }
+    .alt {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid #d4d7dc;
+    }
     .code {
       margin-top: 12px;
       border-radius: 8px;
@@ -124,15 +129,19 @@ function buildInstallPage(bookmarklet, outputPath) {
     <p class="muted">Drag the button to your bookmarks bar, or copy the bookmarklet URL.</p>
 
     <div class="actions">
-      <a class="btn" href="${escaped}" draggable="true">Roll20 Imminar</a>
-      <button class="btn secondary" id="copyBtn" type="button">Copy Bookmarklet URL</button>
+      <a class="btn" href="${escaped}" draggable="true">Drag This to Bookmarks Bar</a>
     </div>
 
     <ol>
       <li>Show your browser bookmarks bar.</li>
-      <li>Drag <strong>Roll20 Imminar</strong> onto the bookmarks bar.</li>
+      <li>Drag <strong>Drag This to Bookmarks Bar</strong> onto the bookmarks bar.</li>
       <li>Open Roll20 and click the bookmark.</li>
     </ol>
+
+    <div class="alt">
+      <p class="muted"><strong>Alternative:</strong> If dragging is blocked, copy the bookmarklet URL instead.</p>
+      <button class="btn secondary" id="copyBtn" type="button">Copy Bookmarklet URL</button>
+    </div>
 
     <details>
       <summary>Manual copy fallback</summary>
