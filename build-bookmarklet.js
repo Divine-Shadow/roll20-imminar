@@ -136,6 +136,7 @@ function buildInstallPage(bookmarklet, outputPath) {
       <li>Show your browser bookmarks bar.</li>
       <li>Drag <strong>Drag This to Bookmarks Bar</strong> onto the bookmarks bar.</li>
       <li>Open Roll20 and click the bookmark.</li>
+      <li>Optional: right-click the bookmark, choose Edit (or equivalent), and rename it to <strong>Roll20 Imminar</strong>.</li>
     </ol>
 
     <div class="alt">

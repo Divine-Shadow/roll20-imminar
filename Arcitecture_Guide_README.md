@@ -34,7 +34,7 @@ roll20-imminar/
 
 Below is a short description of each file inside `src/`:
 
-- **main.ts** – Entrypoint. Imports `buildRollForm` and launches the overlay UI with default static modifiers.
+- **main.ts** – Entrypoint. Performs a Roll20 page preflight check before launching the overlay UI with default static modifiers; on non-Roll20 pages it shows a friendly instruction message instead of initializing.
 - **form-builder.js** – Builds the in-page form, exposes toggles for roll type (`Standard` vs `Semigroup`) and data source (`Roll20 Sheet` vs `Save File`), splits the UI into a collapsible `Roll Setup` section plus a bottom `Quick Roll` section (title, skill, submit), persists data-source selection via `localStorage`, defaults to the save-file prompt when no source preference has been persisted, hides the main rolling controls until a source is explicitly selected/confirmed on first run, initializes first-run prompt state near the center of the viewport, supports dragging the main panel by header with viewport clamping, provides a separate data-source popover with loaded-state indicators and an in-panel `OK` dismiss action, includes a Roll20 character selector field in that popover (used for `@{character|skill}` lookups), loads/parses selected save JSON files, auto-fills character name from loaded save data, dynamically refreshes the selectable roll list (skills + attributes + corruption levels), validates static modifiers for standard rolls, and wires the "Roll" button to `rollSkillCheck`.
 - **skill-options.js** – Defines the hard coded list of skills shown in the form.
 - **ui-styles.js** – Contains visual styles and helpers like `injectDarkThemeStyles` used by the form builder.
