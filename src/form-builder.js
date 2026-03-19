@@ -12,10 +12,11 @@ import { showInputError, clearInputError } from './ui-validation.ts';
 
 const modifierParseCache = new WeakMap();
 const DATA_SOURCE_STORAGE_KEY = 'roll20-imminar:data-source';
+const SAVE_DATA_STORAGE_KEY = 'roll20-imminar:save-data';
 
 export function buildRollForm(config = [], initialSaveData) {
   injectDarkThemeStyles();
-  let currentSaveData = initialSaveData;
+  let currentSaveData = initialSaveData ?? loadPersistedSaveData();
   let skillInputRef;
   let skillListRef;
   let sourceSelectRef;
@@ -267,9 +268,47 @@ export function buildRollForm(config = [], initialSaveData) {
     }
   }
 
+  function isValidPersistedSaveData(value) {
+    return Boolean(
+      value &&
+      typeof value === 'object' &&
+      typeof value.characterName === 'string' &&
+      typeof value.playerName === 'string' &&
+      value.skills &&
+      typeof value.skills === 'object' &&
+      Array.isArray(value.attributes) &&
+      Array.isArray(value.corruptionLevels)
+    );
+  }
+
+  function loadPersistedSaveData() {
+    try {
+      const raw = window.localStorage.getItem(SAVE_DATA_STORAGE_KEY);
+      if (!raw) {
+        return undefined;
+      }
+      const parsed = JSON.parse(raw);
+      return isValidPersistedSaveData(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   function persistDataSource(value) {
     try {
       window.localStorage.setItem(DATA_SOURCE_STORAGE_KEY, value);
+    } catch {
+      // Ignore storage failures in restricted contexts.
+    }
+  }
+
+  function persistSaveData(data) {
+    try {
+      if (!data) {
+        window.localStorage.removeItem(SAVE_DATA_STORAGE_KEY);
+        return;
+      }
+      window.localStorage.setItem(SAVE_DATA_STORAGE_KEY, JSON.stringify(data));
     } catch {
       // Ignore storage failures in restricted contexts.
     }
@@ -354,6 +393,7 @@ export function buildRollForm(config = [], initialSaveData) {
 
   function setCurrentSaveData(data) {
     currentSaveData = data;
+    persistSaveData(data);
     syncSkillOptions();
     setDataButtonState();
     const characterInput = document.getElementById('characterName');
@@ -450,9 +490,9 @@ export function buildRollForm(config = [], initialSaveData) {
     const status = document.createElement('div');
     status.id = 'saveFileStatus';
     status.style.fontSize = '12px';
-    status.style.color = '#bbb';
+    status.style.color = currentSaveData ? '#9fe0b4' : '#bbb';
     status.textContent = currentSaveData
-      ? 'Loaded: provided save data'
+      ? 'Loaded: saved browser data'
       : 'Select a save file, or choose Roll20 Sheet above.';
     wrapper.appendChild(status);
 

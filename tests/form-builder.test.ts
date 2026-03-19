@@ -354,6 +354,58 @@ test('persists data source selection across form rebuilds', () => {
   expect(rebuiltSourceSelect.value).toBe('save-file')
 })
 
+test('restores previously loaded save data from localStorage after rebuild', () => {
+  const parsed = {
+    characterName: 'Veil Vectis',
+    playerName: 'Bill',
+    skills: { Tech: 14, Might: 13, Intellect: 40 },
+    attributes: ['Might', 'Intellect'],
+    corruptionLevels: [11]
+  }
+  mockParseSaveData.mockReturnValue(parsed as any)
+
+  ;(global as any).FileReader = class {
+    public result = ''
+    private loadHandler: null | (() => void) = null
+    addEventListener(name: string, handler: () => void) {
+      if (name === 'load') {
+        this.loadHandler = handler
+      }
+    }
+    readAsText() {
+      this.result = '{"tech_total":"14"}'
+      if (this.loadHandler) {
+        this.loadHandler()
+      }
+    }
+  }
+
+  buildRollForm([])
+  const sourceSelect = document.getElementById('dataSource') as HTMLSelectElement
+  const fileInput = document.getElementById('saveFileInput') as HTMLInputElement
+  sourceSelect.value = 'save-file'
+  sourceSelect.dispatchEvent(new Event('change', { bubbles: true }))
+  const file = new dom.window.File(['{"tech_total":"14"}'], 'character.json', { type: 'application/json' })
+  Object.defineProperty(fileInput, 'files', { value: [file], configurable: true })
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }))
+
+  const closeBtn = Array.from(document.querySelectorAll('button')).find(
+    button => button.textContent === '×'
+  ) as HTMLButtonElement
+  closeBtn.click()
+
+  buildRollForm([])
+  const rebuiltSource = document.getElementById('dataSource') as HTMLSelectElement
+  const rebuiltStatus = document.getElementById('saveFileStatus') as HTMLDivElement
+  const rebuiltDataButton = Array.from(document.querySelectorAll('button')).find(
+    button => button.textContent?.startsWith('Data')
+  ) as HTMLButtonElement
+
+  expect(rebuiltSource.value).toBe('save-file')
+  expect(rebuiltStatus.textContent).toContain('saved browser data')
+  expect(rebuiltDataButton.textContent).toContain('✓')
+})
+
 test('defaults to save-file prompt when data source was never persisted', () => {
   window.localStorage.clear()
 
