@@ -22,12 +22,12 @@ roll20-imminar/
 └── README.md             - Basic build instructions.
 ```
 
-`dist/` is generated after running the build and contains the bundled `bookmarklet.js`, minified `bookmarklet.txt`, and generated installer page `install.html`.
+`dist/` is generated after running the build and contains the bundled `bookmarklet.js`, minified `bookmarklet.txt`, and generated installer page `install.html`. A GitHub Pages-ready installer is also generated at `docs/install.html`.
 
 ## Build Pipeline
 
 1. `npm run build` – Bundles `src/main.ts` via esbuild and outputs `dist/bookmarklet.js`.
-2. `npm run bookmarklet` – Runs `build-bookmarklet.js` to produce a compact bookmarklet in `dist/bookmarklet.txt` and installer page `dist/install.html`.
+2. `npm run bookmarklet` – Runs `build-bookmarklet.js` to produce a compact bookmarklet in `dist/bookmarklet.txt`, installer page `dist/install.html`, and publishable installer page `docs/install.html`.
 3. `npm run bookmarklet:copy` / `npm run bookmarklet:open` / `npm run bookmarklet:install` – Convenience flows for copying bookmarklet URL and opening installer page.
 
 ## Source Modules

@@ -165,9 +165,11 @@ const args = new Set(process.argv.slice(2));
 const shouldCopy = args.has('--copy');
 const shouldOpen = args.has('--open');
 const outputDir = path.resolve('./dist');
+const docsDir = path.resolve('./docs');
 const bookmarkletJsPath = path.join(outputDir, 'bookmarklet.js');
 const bookmarkletTxtPath = path.join(outputDir, 'bookmarklet.txt');
 const installPagePath = path.join(outputDir, 'install.html');
+const docsInstallPagePath = path.join(docsDir, 'install.html');
 
 if (!fs.existsSync(bookmarkletJsPath)) {
   console.error('❌ dist/bookmarklet.js not found. Run `npm run build` first.');
@@ -183,9 +185,12 @@ const bookmarklet = `javascript:${code}`;
 
 fs.writeFileSync(bookmarkletTxtPath, bookmarklet);
 buildInstallPage(bookmarklet, installPagePath);
+fs.mkdirSync(docsDir, { recursive: true });
+buildInstallPage(bookmarklet, docsInstallPagePath);
 
 console.log('✅ Bookmarklet generated in dist/bookmarklet.txt');
 console.log('✅ Installer page generated in dist/install.html');
+console.log('✅ GitHub Pages installer generated in docs/install.html');
 
 if (shouldCopy) {
   if (copyToClipboard(bookmarklet)) {
@@ -196,9 +201,9 @@ if (shouldCopy) {
 }
 
 if (shouldOpen) {
-  if (openFile(installPagePath)) {
-    console.log('✅ Opened dist/install.html');
+  if (openFile(docsInstallPagePath)) {
+    console.log('✅ Opened docs/install.html');
   } else {
-    console.log('⚠️ Could not open browser automatically. Open dist/install.html manually.');
+    console.log('⚠️ Could not open browser automatically. Open docs/install.html manually.');
   }
 }
