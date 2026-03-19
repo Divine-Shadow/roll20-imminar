@@ -170,6 +170,7 @@ const bookmarkletJsPath = path.join(outputDir, 'bookmarklet.js');
 const bookmarkletTxtPath = path.join(outputDir, 'bookmarklet.txt');
 const installPagePath = path.join(outputDir, 'install.html');
 const docsInstallPagePath = path.join(docsDir, 'install.html');
+const docsIndexPath = path.join(docsDir, 'index.html');
 
 if (!fs.existsSync(bookmarkletJsPath)) {
   console.error('❌ dist/bookmarklet.js not found. Run `npm run build` first.');
@@ -187,10 +188,15 @@ fs.writeFileSync(bookmarkletTxtPath, bookmarklet);
 buildInstallPage(bookmarklet, installPagePath);
 fs.mkdirSync(docsDir, { recursive: true });
 buildInstallPage(bookmarklet, docsInstallPagePath);
+fs.writeFileSync(
+  docsIndexPath,
+  '<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0; url=./install.html"><title>Redirecting…</title><p>Redirecting to <a href="./install.html">install.html</a>…</p>'
+);
 
 console.log('✅ Bookmarklet generated in dist/bookmarklet.txt');
 console.log('✅ Installer page generated in dist/install.html');
 console.log('✅ GitHub Pages installer generated in docs/install.html');
+console.log('✅ GitHub Pages index generated in docs/index.html');
 
 if (shouldCopy) {
   if (copyToClipboard(bookmarklet)) {
