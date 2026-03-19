@@ -10,11 +10,7 @@ test('parseSaveData extracts character, attributes, corruption, and skills', () 
 
   expect(parsed.characterName).toBe('Veil Vectis')
   expect(parsed.playerName).toBe('Bill- DivineShadow')
-  expect(parsed.attributes).toEqual([
-    'Analytical',
-    '(Insert Here)',
-    'Good (Defining good as advancing technology over magic)'
-  ])
+  expect(parsed.attributes).toEqual(['Might', 'Speed', 'Intellect', 'Magic'])
   expect(parsed.corruptionLevels).toEqual([11])
 
   expect(parsed.skills.Tech).toBe(14)
@@ -22,6 +18,7 @@ test('parseSaveData extracts character, attributes, corruption, and skills', () 
   expect(parsed.skills['Large Weapons']).toBe(1)
   expect(parsed.skills.Faith).toBe(11)
   expect(parsed.skills.Corruption).toBe(11)
+  expect(parsed.skills.Intellect).toBe(40)
 })
 
 test('getSkillModifierFromSaveData matches exact and normalized skill names', () => {

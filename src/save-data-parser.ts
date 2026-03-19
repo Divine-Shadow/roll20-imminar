@@ -39,7 +39,7 @@ function toNonEmptyString(value: unknown): string | null {
 
 function toDisplaySkillName(skillKey: string): string {
   if (skillKey === 'int') {
-    return 'Int'
+    return 'Intellect'
   }
 
   return skillKey
@@ -85,9 +85,26 @@ function parseCorruptionLevels(payload: SavePayload): number[] {
 }
 
 function parseAttributes(payload: SavePayload): string[] {
-  return ['attributes1', 'attributes2', 'attributes3']
-    .map(key => toNonEmptyString(payload[key]))
-    .filter((value): value is string => value !== null)
+  const attributes: string[] = []
+  const might = toNumber(payload.might_total)
+  const speed = toNumber(payload.speed_total)
+  const intellect = toNumber(payload.int_total)
+  const magic = toNumber(payload.magic_total)
+
+  if (might !== null) {
+    attributes.push('Might')
+  }
+  if (speed !== null) {
+    attributes.push('Speed')
+  }
+  if (intellect !== null) {
+    attributes.push('Intellect')
+  }
+  if (magic !== null) {
+    attributes.push('Magic')
+  }
+
+  return attributes
 }
 
 function parseSkills(payload: SavePayload, corruptionLevels: number[]): Record<string, number> {
@@ -109,6 +126,9 @@ function parseSkills(payload: SavePayload, corruptionLevels: number[]): Record<s
 
   if (!("Corruption" in skills) && corruptionLevels.length > 0) {
     skills.Corruption = Math.max(...corruptionLevels)
+  }
+  if (!("Int" in skills) && typeof skills.Intellect === 'number') {
+    skills.Int = skills.Intellect
   }
 
   return skills

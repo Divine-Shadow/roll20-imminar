@@ -4,6 +4,9 @@
   "scripts": {
     "build": "esbuild src/main.ts --bundle --minify --target=es6 --format=iife --outfile=dist/bookmarklet.js",
     "bookmarklet": "node build-bookmarklet.js",
+    "bookmarklet:copy": "npm run build && node build-bookmarklet.js --copy",
+    "bookmarklet:open": "npm run build && node build-bookmarklet.js --open",
+    "bookmarklet:install": "npm run build && node build-bookmarklet.js --copy --open",
     "test": "jest"
   },
   "devDependencies": {

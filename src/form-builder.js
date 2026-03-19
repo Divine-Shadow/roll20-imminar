@@ -21,13 +21,20 @@ export function buildRollForm(config = [], initialSaveData) {
   let sourceSelectRef;
   let roll20CharacterWrapperRef;
   let roll20CharacterListRef;
+  let sourceSelectionRequired = false;
+  let mainContentRef;
 
   const formDiv = document.createElement('div');
   Object.assign(formDiv.style, topLeftStyle);
   formDiv.id = 'roll-helper-form';
+  formDiv.style.boxSizing = 'border-box';
+  formDiv.style.width = 'min(360px, calc(100vw - 24px))';
+  formDiv.style.maxHeight = '85vh';
+  formDiv.style.overflowY = 'auto';
 
   const form = document.createElement('form');
   form.id = 'customRollForm';
+  form.style.position = 'relative';
 
   function makePanelDraggable(handle, panel) {
     let dragging = false;
@@ -39,8 +46,15 @@ export function buildRollForm(config = [], initialSaveData) {
         return;
       }
 
-      panel.style.left = `${event.clientX - offsetX}px`;
-      panel.style.top = `${event.clientY - offsetY}px`;
+      const rawLeft = event.clientX - offsetX;
+      const rawTop = event.clientY - offsetY;
+      const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
+      const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
+      const clampedLeft = Math.min(Math.max(0, rawLeft), maxLeft);
+      const clampedTop = Math.min(Math.max(0, rawTop), maxTop);
+
+      panel.style.left = `${clampedLeft}px`;
+      panel.style.top = `${clampedTop}px`;
       panel.style.right = 'auto';
       panel.style.bottom = 'auto';
     };
@@ -66,7 +80,7 @@ export function buildRollForm(config = [], initialSaveData) {
   // Header + Close button
   const heading = document.createElement('h3');
   heading.textContent = 'Roll Settings';
-  heading.style.marginTop = '0';
+  heading.style.margin = '0 92px 8px 0';
   heading.style.cursor = 'move';
   heading.style.userSelect = 'none';
   form.appendChild(heading);
@@ -76,9 +90,13 @@ export function buildRollForm(config = [], initialSaveData) {
   closeBtn.type = 'button';
   closeBtn.textContent = '×';
   Object.assign(closeBtn.style, {
-    float: 'right', marginTop: '-28px', marginRight: '-5px',
+    position: 'absolute',
+    top: '0',
+    right: '0',
     fontSize: '16px', border: 'none', background: 'none',
     cursor: 'pointer', color: '#aaa',
+    lineHeight: '1',
+    padding: '2px 4px'
   });
   closeBtn.addEventListener('click', () => formDiv.remove());
   form.appendChild(closeBtn);
@@ -87,9 +105,9 @@ export function buildRollForm(config = [], initialSaveData) {
   dataBtn.type = 'button';
   dataBtn.textContent = 'Data';
   Object.assign(dataBtn.style, {
-    float: 'right',
-    marginTop: '-28px',
-    marginRight: '28px',
+    position: 'absolute',
+    top: '0',
+    right: '28px',
     fontSize: '11px',
     border: '1px solid #555',
     borderRadius: '4px',
@@ -257,6 +275,14 @@ export function buildRollForm(config = [], initialSaveData) {
     }
   }
 
+  function refreshMainContentVisibility() {
+    if (!mainContentRef) {
+      return;
+    }
+
+    mainContentRef.style.display = sourceSelectionRequired ? 'none' : '';
+  }
+
   function uniqueValues(values) {
     return Array.from(new Set(values.filter(v => typeof v === 'string' && v.trim().length > 0)));
   }
@@ -289,7 +315,15 @@ export function buildRollForm(config = [], initialSaveData) {
     }
 
     const attributeEntries = Object.fromEntries(
-      data.attributes.map(attribute => [attribute, 0])
+      data.attributes.map(attribute => {
+        const value =
+          typeof data.skills[attribute] === 'number'
+            ? data.skills[attribute]
+            : attribute === 'Strength' && typeof data.skills.Might === 'number'
+              ? data.skills.Might
+              : 0;
+        return [attribute, value];
+      })
     );
     const corruptionEntries = Object.fromEntries(
       getCorruptionOptionEntries(data).map(entry => [entry.label, entry.value])
@@ -376,7 +410,8 @@ export function buildRollForm(config = [], initialSaveData) {
 
     sourceSelect.append(roll20Opt, saveOpt);
     const persistedSource = loadPersistedDataSource();
-    sourceSelect.value = persistedSource ?? (currentSaveData ? 'save-file' : 'roll20');
+    sourceSelectionRequired = persistedSource === null && !currentSaveData;
+    sourceSelect.value = persistedSource ?? 'save-file';
     sourceSelectRef = sourceSelect;
     sourceLabel.appendChild(sourceSelect);
     wrapper.appendChild(sourceLabel);
@@ -416,7 +451,9 @@ export function buildRollForm(config = [], initialSaveData) {
     status.id = 'saveFileStatus';
     status.style.fontSize = '12px';
     status.style.color = '#bbb';
-    status.textContent = currentSaveData ? 'Loaded: provided save data' : 'No save file selected.';
+    status.textContent = currentSaveData
+      ? 'Loaded: provided save data'
+      : 'Select a save file, or choose Roll20 Sheet above.';
     wrapper.appendChild(status);
 
     const okBtn = document.createElement('button');
@@ -426,6 +463,11 @@ export function buildRollForm(config = [], initialSaveData) {
     okBtn.style.marginTop = '8px';
     okBtn.style.width = '100%';
     okBtn.addEventListener('click', () => {
+      persistDataSource(sourceSelect.value);
+      if (sourceSelectionRequired) {
+        sourceSelectionRequired = false;
+        refreshMainContentVisibility();
+      }
       wrapper.style.display = 'none';
     });
     wrapper.appendChild(okBtn);
@@ -447,7 +489,9 @@ export function buildRollForm(config = [], initialSaveData) {
     fileInput.addEventListener('change', () => {
       const file = fileInput.files && fileInput.files[0];
       if (!file) {
-        status.textContent = currentSaveData ? 'Using previously loaded save data.' : 'No save file selected.';
+        status.textContent = currentSaveData
+          ? 'Using previously loaded save data.'
+          : 'Select a save file, or choose Roll20 Sheet above.';
         return;
       }
 
@@ -470,10 +514,17 @@ export function buildRollForm(config = [], initialSaveData) {
 
     sourceSelect.addEventListener('change', () => {
       persistDataSource(sourceSelect.value);
+      if (sourceSelectionRequired) {
+        sourceSelectionRequired = false;
+        refreshMainContentVisibility();
+      }
       refreshVisibility();
     });
     characterInput.addEventListener('focus', syncCharacterOptions);
     refreshVisibility();
+    if (sourceSelectionRequired) {
+      wrapper.style.display = 'block';
+    }
 
     return { wrapper, sourceSelect, fileInput };
   }
@@ -486,18 +537,23 @@ export function buildRollForm(config = [], initialSaveData) {
       dataSourceControls.style.display === 'none' ? 'block' : 'none';
   });
 
+  const mainContent = document.createElement('div');
+  mainContent.id = 'rollMainContent';
+  mainContentRef = mainContent;
+  form.appendChild(mainContent);
+
   const setupToggleBtn = document.createElement('button');
   setupToggleBtn.type = 'button';
   setupToggleBtn.id = 'setupToggleBtn';
   setupToggleBtn.textContent = 'Hide Setup';
   setupToggleBtn.style.marginBottom = '6px';
   setupToggleBtn.style.width = '100%';
-  form.appendChild(setupToggleBtn);
+  mainContent.appendChild(setupToggleBtn);
 
   const setupBody = document.createElement('div');
   setupBody.id = 'setupBody';
   setupBody.style.marginBottom = '8px';
-  form.appendChild(setupBody);
+  mainContent.appendChild(setupBody);
 
   const quickSection = document.createElement('div');
   quickSection.id = 'quickRollSection';
@@ -506,7 +562,7 @@ export function buildRollForm(config = [], initialSaveData) {
     paddingTop: '8px',
     marginTop: '8px'
   });
-  form.appendChild(quickSection);
+  mainContent.appendChild(quickSection);
 
   createField('Roll Title', 'customTitle', '', quickSection);
   const skillField = createSkillField('Tech');
@@ -521,6 +577,7 @@ export function buildRollForm(config = [], initialSaveData) {
   syncSkillOptions();
   syncCharacterOptions();
   setDataButtonState();
+  refreshMainContentVisibility();
 
   // Static modifiers area
   const container = document.createElement('div');
@@ -577,6 +634,15 @@ export function buildRollForm(config = [], initialSaveData) {
 
   formDiv.appendChild(form);
   document.body.appendChild(formDiv);
+
+  if (sourceSelectionRequired) {
+    const centeredLeft = Math.max(12, Math.round((window.innerWidth - formDiv.offsetWidth) / 2));
+    const centeredTop = Math.max(12, Math.round((window.innerHeight - formDiv.offsetHeight) / 2));
+    formDiv.style.left = `${centeredLeft}px`;
+    formDiv.style.top = `${centeredTop}px`;
+    formDiv.style.right = 'auto';
+    formDiv.style.bottom = 'auto';
+  }
 
   form.addEventListener('submit', e => {
     e.preventDefault();
@@ -739,19 +805,29 @@ function ensureParsedModifier(input) {
 function addStaticModifierRow(name, value, container) {
   const row = document.createElement('div');
   row.className = 'static-modifier-row';
-  Object.assign(row.style, { display: 'flex', gap: '4px', marginBottom: '4px' });
+  Object.assign(row.style, {
+    display: 'flex',
+    gap: '4px',
+    marginBottom: '4px',
+    alignItems: 'center',
+    width: '100%',
+    boxSizing: 'border-box'
+  });
 
   const nameInput = document.createElement('input');
   nameInput.className = 'mod-name';
   nameInput.placeholder = 'Name';
   nameInput.value = name;
-  nameInput.style.flex = '2';
+  nameInput.style.flex = '1 1 0';
+  nameInput.style.minWidth = '0';
 
   const valueInput = document.createElement('input');
   valueInput.className = 'mod-value';
   valueInput.type = 'text';
   valueInput.value = value;
-  valueInput.style.width = '90px';
+  valueInput.style.flex = '0 1 84px';
+  valueInput.style.minWidth = '64px';
+  valueInput.style.width = 'auto';
   valueInput.addEventListener('input', () => validateModifierInput(valueInput));
   valueInput.addEventListener('blur', () => validateModifierInput(valueInput));
   if (value !== '') {
@@ -763,6 +839,9 @@ function addStaticModifierRow(name, value, container) {
   del.textContent = '×';
   del.title = 'Remove';
   del.style.cursor = 'pointer';
+  del.style.flex = '0 0 32px';
+  del.style.width = '32px';
+  del.style.padding = '2px 0';
   del.addEventListener('click', () => row.remove());
 
   row.append(nameInput, valueInput, del);

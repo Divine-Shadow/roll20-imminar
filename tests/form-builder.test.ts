@@ -30,6 +30,7 @@ beforeEach(() => {
   mockParseSaveData.mockReset()
   mockRollDie.mockReturnValue(3)
   window.localStorage.clear()
+  window.localStorage.setItem('roll20-imminar:data-source', 'roll20')
 })
 
 test('buildRollForm creates fields and submits params', () => {
@@ -178,14 +179,17 @@ test('passes parsed save data to rollSkillCheck when provided', () => {
   const saveData = {
     characterName: 'Veil Vectis',
     playerName: 'Bill',
-    skills: { Tech: 14 },
-    attributes: ['Analytical'],
+    skills: { Tech: 14, Might: 13, Intellect: 40 },
+    attributes: ['Might', 'Intellect'],
     corruptionLevels: [11]
   }
 
   buildRollForm([], saveData)
 
   const form = document.getElementById('customRollForm') as HTMLFormElement
+  const sourceSelect = document.getElementById('dataSource') as HTMLSelectElement
+  sourceSelect.value = 'save-file'
+  sourceSelect.dispatchEvent(new Event('change', { bubbles: true }))
   ;(document.getElementById('characterName') as HTMLInputElement).value = 'Veil Vectis'
   ;(document.getElementById('skillName') as HTMLInputElement).value = 'Tech'
 
@@ -196,11 +200,12 @@ test('passes parsed save data to rollSkillCheck when provided', () => {
       saveData: expect.objectContaining({
         characterName: 'Veil Vectis',
         playerName: 'Bill',
-        attributes: ['Analytical'],
+        attributes: ['Might', 'Intellect'],
         corruptionLevels: [11],
         skills: expect.objectContaining({
           Tech: 14,
-          Analytical: 0,
+          Might: 13,
+          Intellect: 40,
           'Corruption Level 11': 11
         })
       })
@@ -261,8 +266,8 @@ test('loads selected save file and uses parsed save data on submit', () => {
   const parsed = {
     characterName: 'Veil Vectis',
     playerName: 'Bill',
-    skills: { Tech: 14 },
-    attributes: ['Analytical'],
+    skills: { Tech: 14, Might: 13, Intellect: 40 },
+    attributes: ['Might', 'Intellect'],
     corruptionLevels: [11]
   }
   mockParseSaveData.mockReturnValue(parsed as any)
@@ -306,7 +311,7 @@ test('loads selected save file and uses parsed save data on submit', () => {
 
   expect(characterNameInput.value).toBe('Veil Vectis')
   expect(Array.from(datalist.querySelectorAll('option')).map(option => option.value)).toEqual(
-    expect.arrayContaining(['Tech', 'Analytical', 'Corruption Level 11'])
+    expect.arrayContaining(['Tech', 'Might', 'Intellect', 'Corruption Level 11'])
   )
   expect(dataButton.textContent).toContain('✓')
 
@@ -320,11 +325,12 @@ test('loads selected save file and uses parsed save data on submit', () => {
       saveData: expect.objectContaining({
         characterName: 'Veil Vectis',
         playerName: 'Bill',
-        attributes: ['Analytical'],
+        attributes: ['Might', 'Intellect'],
         corruptionLevels: [11],
         skills: expect.objectContaining({
           Tech: 14,
-          Analytical: 0,
+          Might: 13,
+          Intellect: 40,
           'Corruption Level 11': 11
         })
       })
@@ -346,4 +352,41 @@ test('persists data source selection across form rebuilds', () => {
   buildRollForm([])
   const rebuiltSourceSelect = document.getElementById('dataSource') as HTMLSelectElement
   expect(rebuiltSourceSelect.value).toBe('save-file')
+})
+
+test('defaults to save-file prompt when data source was never persisted', () => {
+  window.localStorage.clear()
+
+  buildRollForm([])
+
+  const sourceSelect = document.getElementById('dataSource') as HTMLSelectElement
+  const panel = document.getElementById('dataSourcePanel') as HTMLDivElement
+  const status = document.getElementById('saveFileStatus') as HTMLDivElement
+  const mainContent = document.getElementById('rollMainContent') as HTMLDivElement
+  const container = document.getElementById('roll-helper-form') as HTMLDivElement
+
+  expect(sourceSelect.value).toBe('save-file')
+  expect(panel.style.display).toBe('block')
+  expect(status.textContent).toContain('Select a save file')
+  expect(mainContent.style.display).toBe('none')
+  expect(container.style.left).not.toBe('10px')
+  expect(container.style.top).not.toBe('10px')
+
+  sourceSelect.value = 'roll20'
+  sourceSelect.dispatchEvent(new Event('change', { bubbles: true }))
+  expect(mainContent.style.display).toBe('')
+})
+
+test('dragging clamps panel within viewport bounds', () => {
+  buildRollForm([])
+
+  const panel = document.getElementById('roll-helper-form') as HTMLDivElement
+  const heading = panel.querySelector('h3') as HTMLHeadingElement
+
+  heading.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 }))
+  document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: -200, clientY: -300 }))
+  document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }))
+
+  expect(parseInt(panel.style.left, 10)).toBeGreaterThanOrEqual(0)
+  expect(parseInt(panel.style.top, 10)).toBeGreaterThanOrEqual(0)
 })

@@ -22,19 +22,20 @@ roll20-imminar/
 └── README.md             - Basic build instructions.
 ```
 
-`dist/` is generated after running the build and contains the bundled `bookmarklet.js` plus a minified `bookmarklet.txt`.
+`dist/` is generated after running the build and contains the bundled `bookmarklet.js`, minified `bookmarklet.txt`, and generated installer page `install.html`.
 
 ## Build Pipeline
 
 1. `npm run build` – Bundles `src/main.ts` via esbuild and outputs `dist/bookmarklet.js`.
-2. `npm run bookmarklet` – Runs `build-bookmarklet.js` to produce a compact bookmarklet in `dist/bookmarklet.txt`.
+2. `npm run bookmarklet` – Runs `build-bookmarklet.js` to produce a compact bookmarklet in `dist/bookmarklet.txt` and installer page `dist/install.html`.
+3. `npm run bookmarklet:copy` / `npm run bookmarklet:open` / `npm run bookmarklet:install` – Convenience flows for copying bookmarklet URL and opening installer page.
 
 ## Source Modules
 
 Below is a short description of each file inside `src/`:
 
 - **main.ts** – Entrypoint. Imports `buildRollForm` and launches the overlay UI with default static modifiers.
-- **form-builder.js** – Builds the in-page form, exposes toggles for roll type (`Standard` vs `Semigroup`) and data source (`Roll20 Sheet` vs `Save File`), splits the UI into a collapsible `Roll Setup` section plus a bottom `Quick Roll` section (title, skill, submit), persists data-source selection via `localStorage`, supports dragging the main panel by header, provides a separate data-source popover with loaded-state indicators and an in-panel `OK` dismiss action, includes a Roll20 character selector field in that popover (used for `@{character|skill}` lookups), loads/parses selected save JSON files, auto-fills character name from loaded save data, dynamically refreshes the selectable roll list (skills + attributes + corruption levels), validates static modifiers for standard rolls, and wires the "Roll" button to `rollSkillCheck`.
+- **form-builder.js** – Builds the in-page form, exposes toggles for roll type (`Standard` vs `Semigroup`) and data source (`Roll20 Sheet` vs `Save File`), splits the UI into a collapsible `Roll Setup` section plus a bottom `Quick Roll` section (title, skill, submit), persists data-source selection via `localStorage`, defaults to the save-file prompt when no source preference has been persisted, hides the main rolling controls until a source is explicitly selected/confirmed on first run, initializes first-run prompt state near the center of the viewport, supports dragging the main panel by header with viewport clamping, provides a separate data-source popover with loaded-state indicators and an in-panel `OK` dismiss action, includes a Roll20 character selector field in that popover (used for `@{character|skill}` lookups), loads/parses selected save JSON files, auto-fills character name from loaded save data, dynamically refreshes the selectable roll list (skills + attributes + corruption levels), validates static modifiers for standard rolls, and wires the "Roll" button to `rollSkillCheck`.
 - **skill-options.js** – Defines the hard coded list of skills shown in the form.
 - **ui-styles.js** – Contains visual styles and helpers like `injectDarkThemeStyles` used by the form builder.
 - **ui-validation.ts** – Applies shared error styling and tooltips for invalid inputs.
@@ -42,7 +43,7 @@ Below is a short description of each file inside `src/`:
 - **rollPair.ts** – Generates a roll result (base d20, optional luck) and any confirmation chain for critical values.
 - **outcome.ts** – Resolves the final roll with natural 20/1 overrides and returns a `RollOutcome` including confirmations.
 - **rollSkillCheck.ts** – Formats and posts chat output for two paths: standard d20 skill checks (with optional luck/advantage/modifiers) and Semigroup d100 tier rolls.
-- **save-data-parser.ts** – Parses exported save JSON into normalized skill totals, attributes, corruption levels, and exposes skill lookup helpers for roll-time modifier resolution.
+- **save-data-parser.ts** – Parses exported save JSON into normalized skill totals, primary stat attributes (`Might`, `Speed`, `Intellect`, `Magic`), corruption levels, and exposes skill lookup helpers for roll-time modifier resolution.
 - **static-modifier-parser.ts** – Parses modifier text, builds an AST, and evaluates dice expressions using the shared RNG.
 - **static-modifier-types.ts** – Defines the discriminated union (`StaticModifier`) consumed throughout the roll pipeline.
 - **types.ts** – Shared type definitions and re-exports for roll parameters, static modifier unions, and roll outcomes.
